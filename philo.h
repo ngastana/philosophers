@@ -69,7 +69,7 @@ typedef struct s_args
 int			main(int argc, char **argv);
 int			ft_initialize_args(t_args *args, char **argv);
 bool		ft_initialize_philosophers(t_args *args);
-bool		ft_waiter(t_args *args, int i);
+void		*ft_waiter(void *hinder);
 
 /*ATOI*/
 int			ft_atoi(const char *str);

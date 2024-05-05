@@ -42,8 +42,8 @@ bool	ft_initialize_philosophers(t_args *args)
 	i = -1;
 	if (args->philo_count == 1)
 	{
-		printf("0 1 has taken the fork\n");
-		printf(RED BOLD "%llu 1 died\n",
+		printf("   0   1 has taken the fork\n");
+		printf(RED BOLD "   %llu  1 died\n",
 				(unsigned long long)args->time2die);
 		return (false);	
 	}
@@ -63,38 +63,44 @@ bool	ft_initialize_philosophers(t_args *args)
 	return (true);
 }
 
-bool	ft_waiter(t_args *args, int i)
+void	*ft_waiter(void *hinder)
 {
-	pthread_mutex_lock(&args->mutex);
-	if (ft_timer() - args->philo[i].last_meal
-		>= (unsigned long long)args->time2die
-		|| args->philo_finish == args->philo_count)
+	t_args	*args;
+	static int		i;
+
+	args = (t_args *) hinder;
+	while (1)
 	{
-		if (args->philo_count == args->philo_finish)
+		pthread_mutex_lock(&args->mutex);
+		if (ft_timer() - args->philo[i].last_meal
+			>= (unsigned long long)args->time2die
+			|| args->philo_finish == args->philo_count)
 		{
-			args->everyphilo_full = true;
-			pthread_mutex_unlock(&args->philo[i].l_fork);
-			printf(MAGENTA "Every philosopher has eaten %d times\n", args->max_meals);
-		}
-		else
-		{
-			args->someone_die = true;
-			pthread_mutex_unlock(&args->philo[i].l_fork);
-			printf(RED BOLD "%llu %d died\n",
-				ft_timer() - args->start_time, args->philo[i].num);
+			if (args->philo_count == args->philo_finish)
+			{
+				args->everyphilo_full = true;
+				pthread_mutex_unlock(&args->philo[i].l_fork);
+				printf(BOLD MAGENTA "Every philosopher has eaten %d times\n", args->max_meals);
+			}
+			else
+			{
+				args->someone_die = true;
+				pthread_mutex_unlock(&args->philo[i].l_fork);
+				printf(RED BOLD "   %llu   %d died\n",
+					ft_timer() - args->start_time, args->philo[i].num);
+			}
+			pthread_mutex_unlock(&args->mutex);
+			return (NULL);
 		}
 		pthread_mutex_unlock(&args->mutex);
-		return (true);
 	}
-	printf("FINAL PHILOSOFOS: %i\n", i);
-	pthread_mutex_unlock(&args->mutex);
-	return (false);
 }
 
 int	main(int argc, char **argv)
 {
-	t_args	args;
-	int		i;
+	t_args		args;
+	int			i;
+	pthread_t	waiter;
 
 	i = -1;
 	memset(&args, 0, sizeof(t_args));
@@ -105,11 +111,15 @@ int	main(int argc, char **argv)
  	while (++i < args.philo_count)
 		if (pthread_create(&args.philo[i].thread, NULL, philos_working, &args.philo[i])!= 0)
 			return (printf("problems in pthread_create\n"), -1);
+	if (pthread_create(&waiter, NULL, ft_waiter, &args)!= 0)
+		return (printf("problems in pthread_create\n"), -1);		
 	i = 0;
-	while (!ft_waiter(&args, i))
+	while (!should_stop(&args.philo[i]))
 	{
 		if (pthread_join(args.philo[i].thread, NULL) != 0)
-			return (printf("problems in pthread_join\n"), -1);
+			return (printf("problems in pthread_join philos\n"), -1);
+		if (pthread_join(waiter, NULL) != 0)
+			return (printf("problems in pthread_join waiter\n"), -1);
 		if (i + 1 == args.philo_count)
 			i = -1;
 		i++;
